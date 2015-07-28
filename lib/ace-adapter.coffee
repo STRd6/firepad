@@ -3,15 +3,13 @@ firepad = {} unless firepad?
 firepad.ACEAdapter = class ACEAdapter
   ignoreChanges: false
 
-  constructor: (aceInstance) ->
-    @ace = aceInstance
-    @aceSession = @ace.getSession()
+  constructor: (@aceSession) ->
     @aceDoc = @aceSession.getDocument()
     @aceDoc.setNewLineMode 'unix'
     @grabDocumentState()
-    @ace.on 'change', @onChange
-    @ace.on 'blur', @onBlur
-    @ace.on 'focus', @onFocus
+    @aceSession.on 'change', @onChange
+    @aceSession.on 'blur', @onBlur
+    @aceSession.on 'focus', @onFocus
     @aceSession.selection.on 'changeCursor', @onCursorActivity
     @aceRange ?= (ace.require ? require)("ace/range").Range
 
@@ -21,9 +19,9 @@ firepad.ACEAdapter = class ACEAdapter
 
   # Removes all event listeners from the ACE editor instance
   detach: ->
-    @ace.removeListener 'change', @onChange
-    @ace.removeListener 'blur', @onBlur
-    @ace.removeListener 'focus', @onCursorActivity
+    @aceSession.removeListener 'change', @onChange
+    @aceSession.removeListener 'blur', @onBlur
+    @aceSession.removeListener 'focus', @onCursorActivity
     @aceSession.selection.removeListener 'changeCursor', @onCursorActivity
 
   onChange: (change) =>
@@ -33,7 +31,7 @@ firepad.ACEAdapter = class ACEAdapter
       @grabDocumentState()
 
   onBlur: =>
-    @trigger 'blur' if @ace.selection.isEmpty()
+    @trigger 'blur' if @aceSession.selection.isEmpty()
 
   onFocus: =>
     @trigger 'focus'
@@ -117,6 +115,7 @@ firepad.ACEAdapter = class ACEAdapter
     @aceSession.selection.setSelectionRange new @aceRange(start.row, start.column, end.row, end.column)
 
   setOtherCursor: (cursor, color, clientId) ->
+    console.log "setOtherCursor", arguments
     @otherCursors ?= {}
     cursorRange = @otherCursors[clientId]
     if cursorRange
@@ -178,10 +177,10 @@ firepad.ACEAdapter = class ACEAdapter
     @ignoreChanges = false
 
   registerUndo: (undoFn) ->
-    @ace.undo = undoFn
+    @aceSession.undo = undoFn
 
   registerRedo: (redoFn) ->
-    @ace.redo = redoFn
+    @aceSession.redo = redoFn
 
   invertOperation: (operation) ->
     # TODO: Optimize to avoid copying entire text?
