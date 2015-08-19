@@ -115,7 +115,6 @@ firepad.ACEAdapter = class ACEAdapter
     @aceSession.selection.setSelectionRange new @aceRange(start.row, start.column, end.row, end.column)
 
   setOtherCursor: (cursor, color, clientId) ->
-    console.log "setOtherCursor", arguments
     @otherCursors ?= {}
     cursorRange = @otherCursors[clientId]
     if cursorRange
@@ -126,7 +125,7 @@ firepad.ACEAdapter = class ACEAdapter
     end = @posFromIndex cursor.selectionEnd
     if cursor.selectionEnd < cursor.position
       [start, end] = [end, start]
-    clazz = "other-client-selection-#{color.replace '#', ''}"
+    clazz = "other-client-selection-#{clientId}"
     justCursor = cursor.position is cursor.selectionEnd
     clazz = clazz.replace 'selection', 'cursor' if justCursor
     css = """.#{clazz} {

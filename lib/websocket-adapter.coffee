@@ -5,52 +5,50 @@ firepad.WebSocketAdapter = do ->
   # Save a checkpoint every 100 edits.
   CHECKPOINT_FREQUENCY = 100
 
-  WebSocketAdapter = (websocket, userId, userColor) ->
-    this._ready = false
-    this.zombie_ = false
+  WebSocketAdapter = (channel, userId, userColor) ->
+    self = this
+
+    self._ready = false
+    self.zombie_ = false
 
     # We store the current document state as a TextOperation so we can write checkpoints to Firebase occasionally.
     # TODO: Consider more efficient ways to do this. (composing text operations is ~linear in the length of the document).
-    this._document = new TextOperation()
-
-    # The next expected revision.
-    this._revision = 0
-
-    self = this
+    self._document = new TextOperation()
 
     # TODO: Get real initial data
     initial = new TextOperation()
-    initial.insert("old!")
+    initial.insert(channel.initial)
 
     self._document = self._document.compose(initial)
-    self._revision = 0
+    self._revision = channel.revision
+
+    self.userId = channel.userId
+    self.userColor = channel.userColor
+
+    if channel.history.length
+      # NOTE: We are not and should not update the revision id here
+      console.log "CATCHING UP:", channel.history
+      channel.history.forEach (revision) ->
+        self._document = self._document.compose(TextOperation.fromJSON(revision))
 
     setTimeout ->
       self._ready = true
       self.trigger("ready")
 
-      console.log self._document
       self.trigger('operation', self._document)
     , 0
 
-    self._websocket = websocket
+    self._send = channel
 
-    websocket.onclose = (e) ->
-      console.log "CLOSE: ", e
-
-    websocket.onerror = (e) ->
-      console.error e
-
-    websocket.onmessage = ({data}) ->
-      if data.error
-        console.error error
+    channel.onmessage = (data) ->
+      if data.cursor
+        {userId, color, cursor} = data.cursor
+        self.trigger('cursor', userId, cursor, color)
       else
-        # if it's a regular OT message handle that
-        if data.ops
-          id = data.id
-          operation = TextOperation.fromJSON(data.ops)
+        id = data.id
+        operation = TextOperation.fromJSON(data.ops)
 
-          self._handleReceivedOperation(id, operation)
+        self._handleReceivedOperation(id, operation)
 
     return self
 
@@ -89,13 +87,18 @@ firepad.WebSocketAdapter = do ->
     callback?(null, true)
 
     this.sent_ = { id: this._revision, op: operation }
-    self._websocket.send JSON.stringify
-      document: "yolo"
+    self._send
+      id: self._revision
       ops: operation
 
   WebSocketAdapter.prototype.sendCursor = (obj) ->
-    # TODO: this.userRef_.child('cursor').set(obj)
-    this.cursor_ = obj
+    console.log this.userId, this.userColor
+    this._send
+      broadcast:
+        cursor:
+          cursor: obj
+          userId: this.userId
+          color: this.userColor
 
   WebSocketAdapter.prototype.setColor = (color) ->
     # TODO: this.userRef_.child('color').set(color)
@@ -120,16 +123,20 @@ firepad.WebSocketAdapter = do ->
 
 
   WebSocketAdapter.prototype._handleReceivedOperation = (revisionId, operation) ->
+    console.log "HAND_REC:", revisionId, operation
+
     this._document = this._document.compose(operation)
+    this._revision++
 
     if (this.sent_ && revisionId is this.sent_.id)
       # We have an outstanding change at this revision id.
       if (this.sent_.op.equals(operation))
+        console.log "SUCCESS!"
         # This is our change; it succeeded.
-
         this.sent_ = null
         this.trigger('ack')
       else
+        console.log "OTHER OP"
         # our op failed.  Trigger a retry after we're done catching up on any incoming ops.
         triggerRetry = true
         this.trigger('operation', operation)
