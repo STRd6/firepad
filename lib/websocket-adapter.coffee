@@ -15,7 +15,6 @@ firepad.WebSocketAdapter = do ->
     # TODO: Consider more efficient ways to do this. (composing text operations is ~linear in the length of the document).
     self._document = new TextOperation()
 
-    # TODO: Get real initial data
     initial = new TextOperation()
     initial.insert(channel.initial)
 
@@ -27,7 +26,6 @@ firepad.WebSocketAdapter = do ->
 
     if channel.history.length
       # NOTE: We are not and should not update the revision id here
-      console.log "CATCHING UP:", channel.history
       channel.history.forEach (revision) ->
         self._document = self._document.compose(TextOperation.fromJSON(revision))
 
@@ -92,7 +90,6 @@ firepad.WebSocketAdapter = do ->
       ops: operation
 
   WebSocketAdapter.prototype.sendCursor = (obj) ->
-    console.log this.userId, this.userColor
     this._send
       broadcast:
         cursor:
@@ -123,20 +120,16 @@ firepad.WebSocketAdapter = do ->
 
 
   WebSocketAdapter.prototype._handleReceivedOperation = (revisionId, operation) ->
-    console.log "HAND_REC:", revisionId, operation
-
     this._document = this._document.compose(operation)
     this._revision++
 
     if (this.sent_ && revisionId is this.sent_.id)
       # We have an outstanding change at this revision id.
       if (this.sent_.op.equals(operation))
-        console.log "SUCCESS!"
         # This is our change; it succeeded.
         this.sent_ = null
         this.trigger('ack')
       else
-        console.log "OTHER OP"
         # our op failed.  Trigger a retry after we're done catching up on any incoming ops.
         triggerRetry = true
         this.trigger('operation', operation)
