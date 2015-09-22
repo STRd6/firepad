@@ -31,9 +31,9 @@ firepad.WebSocketAdapter = do ->
 
     setTimeout ->
       self._ready = true
-      self.trigger("ready")
 
       self.trigger('operation', self._document)
+      self.trigger("ready")
     , 0
 
     self._send = channel
