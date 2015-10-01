@@ -176,10 +176,10 @@ firepad.ACEAdapter = class ACEAdapter
     @ignoreChanges = false
 
   registerUndo: (undoFn) ->
-    @aceSession.undo = undoFn
+    @aceSession.getUndoManager().undo = undoFn
 
   registerRedo: (redoFn) ->
-    @aceSession.redo = redoFn
+    @aceSession.getUndoManager().redo = redoFn
 
   invertOperation: (operation) ->
     # TODO: Optimize to avoid copying entire text?
