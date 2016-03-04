@@ -91,6 +91,7 @@ firepad.WebSocketAdapter = do ->
 
   WebSocketAdapter.prototype.sendCursor = (obj) ->
     this._send
+      public: true
       broadcast:
         cursor:
           cursor: obj
