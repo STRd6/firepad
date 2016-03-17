@@ -43,15 +43,11 @@ firepad.ACEAdapter = class ACEAdapter
 
   # Converts an ACE change object into a TextOperation and its inverse
   # and returns them as a two-element array.
-  operationFromACEChange: (change) ->
-    delta = change.data
-    if delta.action in ["insertLines", "removeLines"]
-      text = delta.lines.join("\n") + "\n"
-      action = delta.action.replace "Lines", ""
-    else
-      text = delta.text.replace(@aceDoc.getNewLineCharacter(), '\n')
-      action = delta.action.replace "Text", ""
-    start = @indexFromPos delta.range.start
+  operationFromACEChange: (delta) ->
+    action = delta.action
+    text = delta.lines.join("\n")
+
+    start = @indexFromPos delta.start
     restLength = @lastDocLines.join('\n').length - start
     restLength -= text.length if action is "remove"
     operation = new firepad.TextOperation().retain(start).insert(text).retain(restLength)
